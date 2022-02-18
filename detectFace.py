@@ -8,7 +8,7 @@ def read_images_from_folder(folder):
     label_list = []
     for file_path in os.listdir(folder):
         file_ext = os.path.splitext(file_path)[1]
-        if file_ext in [".jpg", ".jpeg"]:
+        if file_ext in [".jpg", ".jpeg", ".heic"]:
             image_path = os.path.join(folder, file_path)
             image = cv2.imread(image_path)
 
@@ -17,12 +17,11 @@ def read_images_from_folder(folder):
                 image_gray = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
                 image_float = np.float32(image_gray)
 
-                cv2.imshow('pic: ', image_gray)
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
+                # cv2.imshow('pic: ', image_gray)
+                # cv2.waitKey(0)
+                # cv2.destroyAllWindows()
 
                 image_list.append(image_float.flatten('C'))
-                # image_list.append(image_float.reshape(10000,))
                 label_list.append(os.path.splitext(file_path)[0])
 
     image_list = np.array(image_list)
@@ -32,8 +31,9 @@ def read_images_from_folder(folder):
 if __name__ == '__main__':
     data, labels = read_images_from_folder("faces")
     adjusted_data = data - data.mean(axis=1, keepdims=True)
-    covariance_matrix = np.cov(adjusted_data.transpose())
-    eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+    covariance_matrix = np.cov(adjusted_data)
+
+    eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
 
     # sort eigenvalues in descending order
     # then, sort the eigenvectors to correspond to the new eigenvalues order
@@ -41,37 +41,48 @@ if __name__ == '__main__':
     eigenvalues = eigenvalues[idx]
     eigenvectors = eigenvectors[:, idx]
 
-    top_n_eigenvectors = eigenvectors[:, :2]
-    # k_eigenvectors = eigenvectors[:2, :]
-    eigen_faces = top_n_eigenvectors.T.dot(adjusted_data.T)
-    weights = adjusted_data.T.dot(eigen_faces.T)
+    top_n_eigenvectors = eigenvectors[:, 0:1000]
 
     # perform inner product with top n eigenvectors and the adjusted data
-    feature_vector = top_n_eigenvectors.transpose()
-    transformed_data = np.inner(feature_vector, adjusted_data)
-    transformed_data = transformed_data.transpose()
+    transformed_data = np.dot(top_n_eigenvectors.T, adjusted_data)
 
     # read test image
-    test_data, test_data_label = read_images_from_folder("testface")
+    test_data, test_labels = read_images_from_folder("testface")
     adjusted_test_data = test_data - data.mean(axis=1, keepdims=True)
 
-    test_data_length = len(test_data_label)
-    for i in range(test_data_length):
-        test_weight = adjusted_test_data.T[i].dot(eigen_faces.T)
-        label_index = np.argmin(np.linalg.norm(test_weight - weights, axis=1))
-        print("Predicted face: ", labels[label_index])
-        print("Actual face: ", test_data_label[i])
-
     # perform inner product with top n eigenvectors and the adjusted test data
-    # transformed_test_data = np.inner(feature_vector, adjusted_test_data)
-    # transformed_test_data = transformed_test_data.transpose()
+    transformed_test_data = np.dot(top_n_eigenvectors.T, adjusted_test_data)
 
-    # print(weights)
+    test_data_length = len(test_labels)
+    for i in range(test_data_length):
+        euclid_dist = np.linalg.norm(transformed_test_data.T[i] - transformed_data.T, axis=1)
+        print(euclid_dist)
+        min_dist_index = np.argmin(euclid_dist)
+        print("Predicted face: ", labels[min_dist_index])
+        print("Actual face: ", test_labels[i])
 
-    #  show average face
+    # # weights method
+    # eigen_faces = top_n_eigenvectors.T.dot(adjusted_data.T)
+    # weights = adjusted_data.T.dot(eigen_faces.T)
+
+    # for i in range(test_data_length):
+    #     test_weight = adjusted_test_data.T[i].dot(eigen_faces.T)
+    #     label_index = np.argmin(np.linalg.norm(test_weight - weights, axis=1))
+    #     print("Predicted face: ", labels[label_index])
+    #     print("Actual face: ", test_labels[i])
+
+    # # show average face
     # float_img = data.mean(axis=1, keepdims=True)
-    # im = np.array(adjusted_test_data, dtype=np.uint8)
+    # im = np.array(float_img, dtype=np.uint8)
     # im_unflatten = np.reshape(im, (100, 100))
     # cv2.imwrite('mean_image.jpg', im_unflatten)
     # cv2.imshow("mean_image", im_unflatten)
     # cv2.waitKey(0)
+
+    # # show each face - average face
+    # for i in range(len(labels)):
+    #     im = np.array(adjusted_data.T[i], dtype=np.uint8)
+    #     im_unflatten = np.reshape(im, (100, 100))
+    #     cv2.imwrite("adjusted_image.jpg", im_unflatten)
+    #     cv2.imshow("adjusted_image", im_unflatten)
+    #     cv2.waitKey(0)
