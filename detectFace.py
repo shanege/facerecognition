@@ -6,23 +6,36 @@ import os
 def read_images_from_folder(folder):
     image_list = []
     label_list = []
+    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
     for file_path in os.listdir(folder):
         file_ext = os.path.splitext(file_path)[1]
-        if file_ext in [".jpg", ".jpeg", ".heic"]:
+        if file_ext in [".jpg", ".jpeg"]:
             image_path = os.path.join(folder, file_path)
             image = cv2.imread(image_path)
 
             if image is not None:
-                resized_image = cv2.resize(image, (100, 100))
-                image_gray = cv2.cvtColor(resized_image, cv2.COLOR_BGR2GRAY)
-                image_float = np.float32(image_gray)
+                image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                resized_image = cv2.resize(image_gray, (100, 100))
 
-                # cv2.imshow('pic: ', image_gray)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
+                # detect the face in the image
+                face = face_cascade.detectMultiScale(resized_image, 1.1, 3)
 
-                image_list.append(image_float.flatten('C'))
-                label_list.append(os.path.splitext(file_path)[0])
+                # draw a square around image
+                for (x, y, w, h) in face:
+                    if w >= h:
+                        h = w
+                    else:
+                        w = h
+                    cv2.rectangle(resized_image, (x, y), (x + w, y + h), (255, 0, 0), 1)
+                    face = resized_image[y:y + h, x:x + w]
+                    resized_face = cv2.resize(face, (100, 100))
+                    face_float = np.float32(resized_face)
+                    # cv2.imshow('img', resized_face)
+                    # cv2.waitKey()
+
+                image_list.append(face_float.flatten('C'))
+                # label_list.append(os.path.splitext(file_path)[0]) # print full image name
+                label_list.append(os.path.splitext(file_path)[0].split("_")[0]) # print only name
 
     image_list = np.array(image_list)
     image_list = image_list.transpose()
@@ -56,7 +69,7 @@ if __name__ == '__main__':
     test_data_length = len(test_labels)
     for i in range(test_data_length):
         euclid_dist = np.linalg.norm(transformed_test_data.T[i] - transformed_data.T, axis=1)
-        print(euclid_dist)
+        # print(euclid_dist) # print the individual distances
         min_dist_index = np.argmin(euclid_dist)
         print("Predicted face: ", labels[min_dist_index])
         print("Actual face: ", test_labels[i])
