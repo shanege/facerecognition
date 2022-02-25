@@ -2,11 +2,13 @@ import numpy as np
 import cv2
 import os
 
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+
 # load images from folder to array
 def read_images_from_folder(folder):
     image_list = []
     label_list = []
-    face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
     for file_path in os.listdir(folder):
         file_ext = os.path.splitext(file_path)[1]
         if file_ext in [".jpg", ".jpeg"]:
@@ -18,20 +20,26 @@ def read_images_from_folder(folder):
                 resized_image = cv2.resize(image_gray, (100, 100))
 
                 # detect the face in the image
-                face = face_cascade.detectMultiScale(resized_image, 1.1, 3)
+                face = face_cascade.detectMultiScale(resized_image, 1.1, 5)
 
-                # draw a square around image
-                for (x, y, w, h) in face:
-                    if w >= h:
-                        h = w
-                    else:
-                        w = h
-                    cv2.rectangle(resized_image, (x, y), (x + w, y + h), (255, 0, 0), 1)
-                    face = resized_image[y:y + h, x:x + w]
-                    resized_face = cv2.resize(face, (100, 100))
-                    face_float = np.float32(resized_face)
-                    # cv2.imshow('img', resized_face)
+                if len(face) == 0:
+                    face_float = np.float32(resized_image)
+                    # cv2.imshow('img', resized_image)
                     # cv2.waitKey()
+
+                else:
+                    # crop out face
+                    for (x, y, w, h) in face:
+                        if w >= h:
+                            h = w
+                        else:
+                            w = h
+                        cv2.rectangle(resized_image, (x, y), (x + w, y + h), (255, 255, 255), 0)
+                        face = resized_image[y + 1:y + h, x + 1:x + w] # +1 to remove the border of the rectangle when cropping
+                        resized_face = cv2.resize(face, (100, 100))
+                        face_float = np.float32(resized_face)
+                        # cv2.imshow('img', resized_face)
+                        # cv2.waitKey()
 
                 image_list.append(face_float.flatten('C'))
                 # label_list.append(os.path.splitext(file_path)[0]) # print full image name
@@ -67,12 +75,23 @@ if __name__ == '__main__':
     transformed_test_data = np.dot(top_n_eigenvectors.T, adjusted_test_data)
 
     test_data_length = len(test_labels)
+    correct_prediction = 0
     for i in range(test_data_length):
         euclid_dist = np.linalg.norm(transformed_test_data.T[i] - transformed_data.T, axis=1)
         # print(euclid_dist) # print the individual distances
         min_dist_index = np.argmin(euclid_dist)
-        print("Predicted face: ", labels[min_dist_index])
-        print("Actual face: ", test_labels[i])
+        if euclid_dist[min_dist_index] > 4500:
+            predicted_face = "Unknown"
+
+        else:
+            predicted_face = labels[min_dist_index]
+
+        print("Predicted face: {}\nActual face: {}\n".format(predicted_face, test_labels[i]))
+
+        if predicted_face == test_labels[i]:
+            correct_prediction += 1
+
+    print("Correct predictions: {}/{}\nAccuracy: {}".format(correct_prediction, test_data_length, correct_prediction/test_data_length))
 
     # # weights method
     # eigen_faces = top_n_eigenvectors.T.dot(adjusted_data.T)
