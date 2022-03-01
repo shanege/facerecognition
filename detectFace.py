@@ -1,9 +1,17 @@
 import numpy as np
 import cv2
 import os
+from math import sin, cos, radians
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+
+def rotate_image(image, angle):
+    if angle == 0: return image
+    height, width = image.shape[:2]
+    rot_mat = cv2.getRotationMatrix2D((width/2, height/2), angle, 0.9)
+    result = cv2.warpAffine(image, rot_mat, (width, height), flags=cv2.INTER_LINEAR)
+    return result
 
 # load images from folder to array
 def read_images_from_folder(folder):
@@ -19,35 +27,54 @@ def read_images_from_folder(folder):
                 image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 resized_image = cv2.resize(image_gray, (100, 100))
 
-                # detect the face in the image
-                face = face_cascade.detectMultiScale(resized_image, 1.1, 5)
+                # detect the face and eyes in the image
+                face = face_cascade.detectMultiScale(resized_image, 1.03, 5)
 
-                if len(face) == 0:
-                    face_float = np.float32(resized_image)
-                    # cv2.imshow('img', resized_image)
-                    # cv2.waitKey()
-
-                else:
+                if len(face):
                     # crop out face
                     for (x, y, w, h) in face:
                         if w >= h:
                             h = w
                         else:
                             w = h
-                        cv2.rectangle(resized_image, (x, y), (x + w, y + h), (255, 255, 255), 0)
-                        face = resized_image[y + 1:y + h, x + 1:x + w] # +1 to remove the border of the rectangle when cropping
+                        cv2.rectangle(resized_image, (x, y), (x + w, y + h), (255, 255, 255), 1)
+                        # +1 to remove the border of the rectangle when cropping
+                        face = resized_image[y + 1:y + h, x + 1:x + w]
                         resized_face = cv2.resize(face, (100, 100))
                         face_float = np.float32(resized_face)
-                        # cv2.imshow('img', resized_face)
-                        # cv2.waitKey()
+                        cv2.imshow('img', resized_face)
+                        cv2.waitKey()
+
+                else:
+                    for angle in range(-40, 40):
+                        rimg = rotate_image(resized_image, angle)
+                        face = face_cascade.detectMultiScale(rimg, 1.03, 5)
+                        if len(face):
+                            for (x, y, w, h) in face:
+                                if w >= h:
+                                    h = w
+                                else:
+                                    w = h
+                            cv2.rectangle(rimg, (x, y), (x + w, y + h), (255, 255, 255), 1)
+                            # +1 to remove the border of the rectangle when cropping
+                            face = rimg[y + 1:y + h, x + 1:x + w]
+                            resized_face = cv2.resize(face, (100, 100))
+                            face_float = np.float32(resized_face)
+                            cv2.imshow('img', resized_face)
+                            cv2.waitKey()
+                            break
+
+                        else:
+                            face_float = np.float32(resized_image)
 
                 image_list.append(face_float.flatten('C'))
                 # label_list.append(os.path.splitext(file_path)[0]) # print full image name
-                label_list.append(os.path.splitext(file_path)[0].split("_")[0]) # print only name
+                label_list.append(os.path.splitext(file_path)[0].split("_")[0])  # print only name
 
     image_list = np.array(image_list)
     image_list = image_list.transpose()
     return image_list, label_list
+
 
 if __name__ == '__main__':
     data, labels = read_images_from_folder("faces")
@@ -91,17 +118,8 @@ if __name__ == '__main__':
         if predicted_face == test_labels[i]:
             correct_prediction += 1
 
-    print("Correct predictions: {}/{}\nAccuracy: {}".format(correct_prediction, test_data_length, correct_prediction/test_data_length))
-
-    # # weights method
-    # eigen_faces = top_n_eigenvectors.T.dot(adjusted_data.T)
-    # weights = adjusted_data.T.dot(eigen_faces.T)
-
-    # for i in range(test_data_length):
-    #     test_weight = adjusted_test_data.T[i].dot(eigen_faces.T)
-    #     label_index = np.argmin(np.linalg.norm(test_weight - weights, axis=1))
-    #     print("Predicted face: ", labels[label_index])
-    #     print("Actual face: ", test_labels[i])
+    print("Correct predictions: {}/{}\nAccuracy: {}".format(correct_prediction, test_data_length,
+                                                            correct_prediction / test_data_length))
 
     # # show average face
     # float_img = data.mean(axis=1, keepdims=True)
