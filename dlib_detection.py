@@ -81,18 +81,18 @@ def read_images_from_folder(folder):
                     dX = right_eye_center[0] - left_eye_center[0]
                     angle = np.degrees(np.arctan2(dY, dX)) - 180
 
-                    h, w = temp.shape[:2]
+                    h, w = resized_image.shape[:2]
                     center = (w // 2, h // 2)
 
                     M = cv2.getRotationMatrix2D(center, angle, 1)
 
                     rotated = cv2.warpAffine(resized_image, M, (w, h))
 
-                    rotated = cv2.resize(rotated, (500, 500))
-                    cv2.imshow("rotated", rotated)
-                    cv2.waitKey(0)
+                    rotated = cv2.resize(rotated, (100, 100))
+                    # cv2.imshow("rotated", rotated)
+                    # cv2.waitKey(0)
 
-                    face = face_cascade.detectMultiScale(rotated, 1.03, 5)
+                    face = face_cascade.detectMultiScale(rotated, 1.1, 5)
                     for (x, y, w, h) in face:
                         if w >= h:
                             h = w
@@ -102,10 +102,12 @@ def read_images_from_folder(folder):
 
                     cropped_face = rotated[y + 1:y + h, x + 1:x + w]
                     cropped_face = cv2.resize(cropped_face, (100, 100))
+                    cv2.imshow("rotated", cropped_face)
+                    cv2.waitKey(0)
 
                 else:
                     print(os.path.splitext(file_path)[0], "does not have a face")
 
 if __name__ == '__main__':
-    # read_images_from_folder("faces")
-    read_images_from_folder("testface")
+    read_images_from_folder("faces")
+    # read_images_from_folder("testface")
