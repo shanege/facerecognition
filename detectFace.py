@@ -83,7 +83,7 @@ def read_images_from_folder(folder):
                     M = cv2.getRotationMatrix2D(center, angle, 1)
                     rotated = cv2.warpAffine(resized_image, M, (w, h))
 
-                    rotated = cv2.resize(rotated, (500, 500))
+                    rotated = cv2.resize(rotated, (100, 100))
                     cv2.imshow("rotated", rotated)
                     cv2.waitKey(0)
 
