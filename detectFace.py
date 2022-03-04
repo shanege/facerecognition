@@ -7,9 +7,8 @@ import dlib
 from collections import Counter
 import math
 
-from sklearn.metrics import confusion_matrix, precision_score, accuracy_score, recall_score, f1_score
 from sklearn import metrics
-
+from sklearn.svm import SVC
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
@@ -90,8 +89,8 @@ def read_images_from_folder(folder):
                     rotated = cv2.warpAffine(resized_image, M, (w, h))
 
                     rotated = cv2.resize(rotated, (100, 100))
-                    cv2.imshow("rotated", rotated)
-                    cv2.waitKey(0)
+                    # cv2.imshow("rotated", rotated)
+                    # cv2.waitKey(0)
 
                     # find and crop the face from the aligned image
                     face = face_cascade.detectMultiScale(rotated, 1.03, 5)
@@ -115,8 +114,72 @@ def read_images_from_folder(folder):
     return image_list, label_list
 
 
+def roc_curve(test, prediction, model_name):
+    fpr, tpr, thresh = ({} for i in range(3))
+    n_class = len(test)
+    test = np.array(test)
+    prediction = np.array(prediction)
+
+    # calculating roc curve
+    for i in range(n_class):
+        fpr[i], tpr[i], thresh[i] = metrics.roc_curve(test, prediction, pos_label=i)
+
+    # plotting
+    for i in range(n_class):
+        plt.plot(fpr[i], tpr[i])
+    plt.title("ROC Curve - " + model_name)
+    plt.xlabel("False positive rate")
+    plt.ylabel("True positive rate")
+    plt.savefig("ROC Curve - " + model_name, dpi=300)
+    plt.show()
+
+
+def roc_auc_score_multiclass(actual_class, pred_class, model_name, average="macro"):
+    # creating a set of all the unique classes using the actual class list
+    unique_class = set(actual_class)
+    roc_auc_dict = {}
+    fpr, tpr, thresh = ({} for i in range(3))
+    curr_loop = 0
+
+    for per_class in unique_class:
+        # creating a list of all the classes except the current class
+        other_class = [x for x in unique_class if x != per_class]
+
+        # marking the current class as 1 and all other classes as 0
+        new_actual_class = [0 if x in other_class else 1 for x in actual_class]
+        new_pred_class = [0 if x in other_class else 1 for x in pred_class]
+
+        # using the sklearn metrics method to calculate the roc_auc_score
+        roc_auc = metrics.roc_auc_score(new_actual_class, new_pred_class, average=average)
+        roc_auc_dict[per_class] = roc_auc
+
+        fpr[curr_loop], tpr[curr_loop], thresh[curr_loop] = metrics.roc_curve(new_actual_class, new_pred_class)
+        plt.plot(fpr[curr_loop], tpr[curr_loop])
+        curr_loop += 1
+
+    plt.title("ROC Curve - " + model_name)
+    plt.xlabel("False positive rate")
+    plt.ylabel("True positive rate")
+    plt.savefig("ROC Curve - " + model_name, dpi=300)
+    plt.show()
+
+    return roc_auc_dict
+
+
+def analysis_report(test, prediction, model_name):
+    print(f"Accuracy : {metrics.accuracy_score(test, prediction)}")
+    print(f"Macro Precision : {metrics.precision_score(test, prediction, zero_division=0, average='macro')}")
+    print(f"Micro Precision : {metrics.precision_score(test, prediction, zero_division=0, average='micro')}")
+    print(f"Macro Recall : {metrics.recall_score(test, prediction, zero_division=0, average='macro')}")
+    print(f"Micro Recall : {metrics.recall_score(test, prediction, zero_division=0, average='micro')}")
+    print(f"Macro f1 score : {metrics.f1_score(test, prediction, zero_division=0, average='macro')}")
+    print(f"Micro f1 score : {metrics.f1_score(test, prediction, zero_division=0, average='micro')}")
+    print(f"Classification report : {metrics.classification_report(test, prediction, zero_division=0)}")
+    print(roc_auc_score_multiclass(test, prediction, model_name))
+
+
 if __name__ == '__main__':
-    data, labels = read_images_from_folder("faces")
+    data, labels = read_images_from_folder("train")
     adjusted_data = data - data.mean(axis=1, keepdims=True)
     covariance_matrix = np.cov(adjusted_data)
 
@@ -133,17 +196,18 @@ if __name__ == '__main__':
     # perform inner product with top n eigenvectors and the adjusted data
     transformed_data = np.dot(top_n_eigenvectors.T, adjusted_data)
 
+    # train SVM model
+    model = SVC(kernel='linear', probability=True)
+    model.fit(transformed_data.T, labels)
     # read test image
-    test_data, test_labels = read_images_from_folder("testface")
+    test_data, test_labels = read_images_from_folder("test")
     adjusted_test_data = test_data - data.mean(axis=1, keepdims=True)
 
     # perform inner product with top n eigenvectors and the adjusted test data
     transformed_test_data = np.dot(top_n_eigenvectors.T, adjusted_test_data)
 
     test_data_length = len(test_labels)
-    print(test_labels)
-    print(labels)
-    results = []
+    result_euclid_pred, result_knn_pred = ([] for i in range(2))
     correct_prediction = 0
 
     # k = square root of N (number of samples)
@@ -151,21 +215,30 @@ if __name__ == '__main__':
 
     recognition_threshold = 4500
 
+    # SVM classifier
+    result_svm_pred = model.predict(transformed_test_data.T)
+
     for i in range(test_data_length):
+        # NCC classifier
         euclid_dist = np.linalg.norm(transformed_test_data.T[i] - transformed_data.T, axis=1)
         # print(euclid_dist) # print the individual distances
 
         min_dist_index = np.argmin(euclid_dist)
-        euclidean_predicted_face = "unknown" if euclid_dist[min_dist_index] > recognition_threshold else labels[min_dist_index]
+        euclidean_predicted_face = "unknown" if euclid_dist[min_dist_index] > recognition_threshold else labels[
+            min_dist_index]
+        result_euclid_pred.append(euclidean_predicted_face)
 
         # kNN classifier
         k_nearest_indices = np.argpartition(euclid_dist, k)[:k]
         counter = Counter([labels[i] for i in k_nearest_indices])
-        kNN_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > recognition_threshold else counter.most_common()[0]
+        kNN_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > 4600 else \
+        counter.most_common()[0][0]
+        result_knn_pred.append(kNN_predicted_face)
 
-        print([labels[i] for i in k_nearest_indices]) # print the nearest neighbors
-        print(euclid_dist[k_nearest_indices]) # print the distances of the nearest neighbors
-        print(euclid_dist[k_nearest_indices].mean())
+
+        # print([labels[i] for i in k_nearest_indices]) # print the nearest neighbors
+        # print(euclid_dist[k_nearest_indices]) # print the distances of the nearest neighbors
+        # print(euclid_dist[k_nearest_indices].mean())
         # print("Euclidean predicted face: {}\n"
         #       "KNN faces: {}\n"
         #       "Majority face (a): {}\n"
@@ -178,6 +251,16 @@ if __name__ == '__main__':
         print("Actual face: ", test_labels[i])
         print("Euclidean predicted face:", euclidean_predicted_face)
         print("KNN predicted face: ", kNN_predicted_face)
+        print("SVM predicted face: ", result_svm_pred[i])
+
+    print("\nEuclid Analysis \n------------------------------")
+    analysis_report(test_labels, result_euclid_pred, "Euclid")
+
+    print("\nKNN Analysis \n------------------------------")
+    analysis_report(test_labels, result_knn_pred, "KNN")
+
+    print("\nSVM Analysis \n------------------------------")
+    analysis_report(test_labels, result_svm_pred, "SVM")
 
     #     if euclidean_predicted_face == test_labels[i]:
     #         correct_prediction += 1
@@ -185,13 +268,10 @@ if __name__ == '__main__':
     # print("Correct predictions: {}/{}\nAccuracy: {}".
     #       format(correct_prediction, test_data_length, correct_prediction / test_data_length))
 
-    results_arr = np.array(results)
-    test_labels_arr = np.array(test_labels)
     # print(f"Accuracy: {round(accuracy_score(test_labels_arr, results_arr), 2)}")
     # print(f"Precision: {round(precision_score(test_labels_arr, results_arr), 2)}")
     # print(f"Recall: {round(recall_score(test_labels_arr, results_arr), 2)}")
     # print(f"F1_score: {round(f1_score(test_labels_arr, results_arr), 2)}")
-    print(metrics.classification_report(test_labels_arr, results_arr, zero_division=0))
 
     # # show average face
     # float_img = data.mean(axis=1, keepdims=True)
