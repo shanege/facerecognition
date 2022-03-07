@@ -203,7 +203,7 @@ if __name__ == '__main__':
     model = SVC(kernel='linear', probability=True)
     model.fit(transformed_data.T, labels)
     # read test image
-    test_data, test_labels = read_images_from_folder("tilted")
+    test_data, test_labels = read_images_from_folder("test")
     adjusted_test_data = test_data - data.mean(axis=1, keepdims=True)
 
     # perform inner product with top n eigenvectors and the adjusted test data
@@ -234,7 +234,7 @@ if __name__ == '__main__':
         # kNN classifier
         k_nearest_indices = np.argpartition(euclid_dist, k)[:k]
         counter = Counter([labels[i] for i in k_nearest_indices])
-        kNN_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > 4600 else \
+        kNN_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > 6000 else \
         counter.most_common()[0][0]
         result_knn_pred.append(kNN_predicted_face)
 
