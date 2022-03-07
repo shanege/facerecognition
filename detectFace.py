@@ -105,9 +105,12 @@ def read_images_from_folder(folder):
                     cropped_face = cv2.resize(cropped_face, (100, 100))
                     face_float = np.float32(cropped_face)
 
-                image_list.append(face_float.flatten('C'))
-                # label_list.append(os.path.splitext(file_path)[0]) # print full image name
-                label_list.append(os.path.splitext(file_path)[0].split("_")[0])  # print only name
+                    image_list.append(face_float.flatten('C'))
+                    # label_list.append(os.path.splitext(file_path)[0]) # print full image name
+                    label_list.append(os.path.splitext(file_path)[0].split("_")[0])  # print only name
+
+                else:
+                    print(os.path.splitext(file_path)[0], "does not have a face")
 
     image_list = np.array(image_list)
     image_list = image_list.transpose()
@@ -200,7 +203,7 @@ if __name__ == '__main__':
     model = SVC(kernel='linear', probability=True)
     model.fit(transformed_data.T, labels)
     # read test image
-    test_data, test_labels = read_images_from_folder("test")
+    test_data, test_labels = read_images_from_folder("tilted")
     adjusted_test_data = test_data - data.mean(axis=1, keepdims=True)
 
     # perform inner product with top n eigenvectors and the adjusted test data

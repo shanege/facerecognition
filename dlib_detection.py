@@ -102,12 +102,13 @@ def read_images_from_folder(folder):
 
                     cropped_face = rotated[y + 1:y + h, x + 1:x + w]
                     cropped_face = cv2.resize(cropped_face, (100, 100))
-                    # cv2.imshow("rotated", cropped_face)
-                    # cv2.waitKey(0)
+                    cv2.imshow("rotated", cropped_face)
+                    cv2.waitKey(0)
 
                 else:
                     print(os.path.splitext(file_path)[0], "does not have a face")
 
 if __name__ == '__main__':
     read_images_from_folder("tilted")
-    # read_images_from_folder("testface")
+    # read_images_from_folder("test")
+    # read_images_from_folder("train")
