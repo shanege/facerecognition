@@ -93,7 +93,7 @@ def read_images_from_folder(folder):
                     # cv2.waitKey(0)
 
                     # find and crop the face from the aligned image
-                    face = face_cascade.detectMultiScale(rotated, 1.03, 5)
+                    face = face_cascade.detectMultiScale(rotated, 1.1, 5)
                     for (x, y, w, h) in face:
                         if w >= h:
                             h = w
