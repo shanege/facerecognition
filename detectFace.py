@@ -6,6 +6,7 @@ import os
 import dlib
 from collections import Counter
 import math
+import time
 
 from sklearn import metrics
 from sklearn.svm import SVC
@@ -17,6 +18,7 @@ face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 def read_images_from_folder(folder):
     image_list = []
     label_list = []
+    print("[INFO] Detecting and realigning faces...")
     for file_path in os.listdir(folder):
         file_ext = os.path.splitext(file_path)[1]
         if file_ext in [".jpg", ".jpeg"]:
@@ -117,27 +119,7 @@ def read_images_from_folder(folder):
     return image_list, label_list
 
 
-def roc_curve(test, prediction, model_name):
-    fpr, tpr, thresh = ({} for i in range(3))
-    n_class = len(test)
-    test = np.array(test)
-    prediction = np.array(prediction)
-
-    # calculating roc curve
-    for i in range(n_class):
-        fpr[i], tpr[i], thresh[i] = metrics.roc_curve(test, prediction, pos_label=i)
-
-    # plotting
-    for i in range(n_class):
-        plt.plot(fpr[i], tpr[i])
-    plt.title("ROC Curve - " + model_name)
-    plt.xlabel("False positive rate")
-    plt.ylabel("True positive rate")
-    plt.savefig("ROC Curve - " + model_name, dpi=300)
-    plt.show()
-
-
-def roc_auc_score_multiclass(actual_class, pred_class, model_name, average="macro"):
+def roc_auc_score_multiclass(actual_class, pred_class, model_name):
     # creating a set of all the unique classes using the actual class list
     unique_class = set(actual_class)
     roc_auc_dict = {}
@@ -153,7 +135,7 @@ def roc_auc_score_multiclass(actual_class, pred_class, model_name, average="macr
         new_pred_class = [0 if x in other_class else 1 for x in pred_class]
 
         # using the sklearn metrics method to calculate the roc_auc_score
-        roc_auc = metrics.roc_auc_score(new_actual_class, new_pred_class, average=average)
+        roc_auc = metrics.roc_auc_score(new_actual_class, new_pred_class)
         roc_auc_dict[per_class] = roc_auc
 
         fpr[curr_loop], tpr[curr_loop], thresh[curr_loop] = metrics.roc_curve(new_actual_class, new_pred_class)
@@ -182,10 +164,13 @@ def analysis_report(test, prediction, model_name):
 
 
 if __name__ == '__main__':
+    start_time = time.perf_counter()
+    print("[INFO] Loading training data...")
     data, labels = read_images_from_folder("train")
     adjusted_data = data - data.mean(axis=1, keepdims=True)
     covariance_matrix = np.cov(adjusted_data)
 
+    print("[INFO] Calculating eigenvectors and eigenvalues...")
     eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
 
     # sort eigenvalues in descending order
@@ -202,8 +187,10 @@ if __name__ == '__main__':
     # train SVM model
     model = SVC(kernel='linear', probability=True)
     model.fit(transformed_data.T, labels)
+
+    print("[INFO] Loading test data...")
     # read test image
-    test_data, test_labels = read_images_from_folder("tilted")
+    test_data, test_labels = read_images_from_folder("test")
     adjusted_test_data = test_data - data.mean(axis=1, keepdims=True)
 
     # perform inner product with top n eigenvectors and the adjusted test data
@@ -218,6 +205,7 @@ if __name__ == '__main__':
 
     recognition_threshold = 4500
 
+    print("[INFO] Predicting results of NCC, KNN & SVM...")
     # SVM classifier
     result_svm_pred = model.predict(transformed_test_data.T)
 
@@ -234,7 +222,7 @@ if __name__ == '__main__':
         # kNN classifier
         k_nearest_indices = np.argpartition(euclid_dist, k)[:k]
         counter = Counter([labels[i] for i in k_nearest_indices])
-        kNN_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > 4600 else \
+        kNN_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > 6000 else \
         counter.most_common()[0][0]
         result_knn_pred.append(kNN_predicted_face)
 
@@ -264,6 +252,10 @@ if __name__ == '__main__':
 
     print("\nSVM Analysis \n------------------------------")
     analysis_report(test_labels, result_svm_pred, "SVM")
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+    print(f"The program took {math.floor(total_time / 60)} minutes and {math.ceil(total_time % 60)} seconds to "
+          f"complete.")
 
     #     if euclidean_predicted_face == test_labels[i]:
     #         correct_prediction += 1
