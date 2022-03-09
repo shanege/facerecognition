@@ -1,5 +1,4 @@
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 import cv2
 import os
@@ -18,6 +17,8 @@ face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 def read_images_from_folder(folder):
     image_list = []
     label_list = []
+    current_name = ""
+
     print("[INFO] Detecting and realigning faces...")
     for file_path in os.listdir(folder):
         file_ext = os.path.splitext(file_path)[1]
@@ -35,39 +36,17 @@ def read_images_from_folder(folder):
                 detector = dlib.get_frontal_face_detector()
                 detections = detector(temp, 1)
 
-                sp = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+                predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
                 faces = dlib.full_object_detections()
                 for det in detections:
-                    faces.append(sp(temp, det))
+                    faces.append(predictor(temp, det))
 
                 if len(faces):
-                    # Bounding box and eyes
-                    bb = [i.rect for i in faces]
-                    bb = [((i.left(), i.top()),
-                           (i.right(), i.bottom())) for i in bb]  # Convert out of dlib format
-
                     right_eyes = [[face.part(i) for i in range(36, 42)] for face in faces]
                     right_eyes = [[(i.x, i.y) for i in eye] for eye in right_eyes]  # Convert out of dlib format
 
                     left_eyes = [[face.part(i) for i in range(42, 48)] for face in faces]
                     left_eyes = [[(i.x, i.y) for i in eye] for eye in left_eyes]  # Convert out of dlib format
-
-                    for i in bb:
-                        cv2.rectangle(temp, i[0], i[1], (255, 0, 0), 5)  # Bounding box
-
-                    for eye in right_eyes:
-                        cv2.rectangle(temp, (max(eye, key=lambda x: x[0])[0], max(eye, key=lambda x: x[1])[1]),
-                                      (min(eye, key=lambda x: x[0])[0], min(eye, key=lambda x: x[1])[1]),
-                                      (0, 0, 255), 5)
-                        for point in eye:
-                            cv2.circle(temp, (point[0], point[1]), 2, (0, 255, 0), -1)
-
-                    for eye in left_eyes:
-                        cv2.rectangle(temp, (max(eye, key=lambda x: x[0])[0], max(eye, key=lambda x: x[1])[1]),
-                                      (min(eye, key=lambda x: x[0])[0], min(eye, key=lambda x: x[1])[1]),
-                                      (0, 255, 0), 5)
-                        for point in eye:
-                            cv2.circle(temp, (point[0], point[1]), 2, (0, 0, 255), -1)
 
                     # convert to numpy array to calculate center
                     left_eyes = np.array(left_eyes)
@@ -76,9 +55,6 @@ def read_images_from_folder(folder):
                     right_eyes = np.array(right_eyes)
                     right_eyes = right_eyes.reshape(-1, right_eyes.shape[-1])
                     right_eye_center = right_eyes.mean(axis=0).astype("int")
-
-                    cv2.line(temp, (left_eye_center[0], left_eye_center[1]), (right_eye_center[0], right_eye_center[1]),
-                             (255, 255, 255), 5)
 
                     dY = right_eye_center[1] - left_eye_center[1]
                     dX = right_eye_center[0] - left_eye_center[0]
@@ -101,18 +77,60 @@ def read_images_from_folder(folder):
                             h = w
                         else:
                             w = h
-                        cv2.rectangle(rotated, (x, y), (x + w, y + h), (0, 255, 0), 1)
 
                     cropped_face = rotated[y + 1:y + h, x + 1:x + w]
                     cropped_face = cv2.resize(cropped_face, (100, 100))
+
+                    # cv2.imshow("cropped", cropped_face)
+                    # cv2.waitKey(0)
+
                     face_float = np.float32(cropped_face)
 
                     image_list.append(face_float.flatten('C'))
-                    # label_list.append(os.path.splitext(file_path)[0]) # print full image name
-                    label_list.append(os.path.splitext(file_path)[0].split("_")[0])  # print only name
+                    label_list.append(os.path.splitext(file_path)[0].split("_")[0])  # add only name
+
+                    if folder == "train" and current_name != os.path.splitext(file_path)[0].split("_")[0]:
+                        rotated = cv2.resize(rotated, (550, 550))
+
+                        detections = detector(rotated, 1)
+                        for det in detections:
+                            landmarks = predictor(rotated, det)
+
+                        points = []
+                        for i in range(1, 16):
+                            point = [landmarks.part(i).x, landmarks.part(i).y]
+                            points.append(point)
+
+                        mask = [(landmarks.part(29).x, landmarks.part(29).y)]
+
+                        face_mask = points + mask
+                        face_mask = np.array(face_mask, dtype=np.int32)
+                        cv2.fillPoly(rotated, [face_mask], (0, 0, 0))
+                        rotated = cv2.resize(rotated, (100, 100))
+                        cropped_mask = rotated[y + 1:y + h, x + 1:x + w]
+                        cropped_mask = cv2.resize(cropped_mask, (100, 100))
+
+                        # cv2.imshow("cropped", cropped_mask)
+                        # cv2.waitKey(0)
+
+                        mask_float = np.float32(cropped_mask)
+
+                        image_list.append(mask_float.flatten('C'))
+                        label_list.append(os.path.splitext(file_path)[0].split("_")[0])  # add only name
+
+                        current_name = os.path.splitext(file_path)[0].split("_")[0]
 
                 else:
-                    print(os.path.splitext(file_path)[0], "does not have a face")
+                    print(f"[INFO] {os.path.splitext(file_path)[0]} does not have a face, adding image as training data...")
+                    cropped_face = cv2.resize(image_gray, (100, 100))
+
+                    # cv2.imshow("cropped", cropped_face)
+                    # cv2.waitKey(0)
+
+                    face_float = np.float32(cropped_face)
+
+                    image_list.append(face_float.flatten('C'))
+                    label_list.append(os.path.splitext(file_path)[0].split("_")[0])  # add only name
 
     image_list = np.array(image_list)
     image_list = image_list.transpose()
@@ -199,7 +217,7 @@ if __name__ == '__main__':
     # k = square root of N (number of samples)
     k = math.floor(math.sqrt(len(labels)))
 
-    recognition_threshold = 4500
+    recognition_threshold = 6000
 
     print("[INFO] Predicting results of NCC, KNN & SVM...")
     # SVM classifier
