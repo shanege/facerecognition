@@ -146,19 +146,15 @@ def roc_auc_score_multiclass(actual_class, pred_class, model_name):
     plt.xlabel("False positive rate")
     plt.ylabel("True positive rate")
     plt.savefig("ROC Curve - " + model_name, dpi=300)
-    plt.show()
 
     return roc_auc_dict
 
 
 def analysis_report(test, prediction, model_name):
     print(f"Accuracy : {metrics.accuracy_score(test, prediction)}")
-    print(f"Macro Precision : {metrics.precision_score(test, prediction, zero_division=0, average='macro')}")
-    print(f"Micro Precision : {metrics.precision_score(test, prediction, zero_division=0, average='micro')}")
-    print(f"Macro Recall : {metrics.recall_score(test, prediction, zero_division=0, average='macro')}")
-    print(f"Micro Recall : {metrics.recall_score(test, prediction, zero_division=0, average='micro')}")
-    print(f"Macro f1 score : {metrics.f1_score(test, prediction, zero_division=0, average='macro')}")
-    print(f"Micro f1 score : {metrics.f1_score(test, prediction, zero_division=0, average='micro')}")
+    print(f"Macro Precision : {metrics.precision_score(test, prediction, zero_division=0, average='weighted')}")
+    print(f"Macro Recall : {metrics.recall_score(test, prediction, zero_division=0, average='weighted')}")
+    print(f"Macro f1 score : {metrics.f1_score(test, prediction, zero_division=0, average='weighted')}")
     print(f"Classification report : {metrics.classification_report(test, prediction, zero_division=0)}")
     print(roc_auc_score_multiclass(test, prediction, model_name))
 
