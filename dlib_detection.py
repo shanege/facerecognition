@@ -109,6 +109,6 @@ def read_images_from_folder(folder):
                     print(os.path.splitext(file_path)[0], "does not have a face")
 
 if __name__ == '__main__':
-    read_images_from_folder("test")
+    read_images_from_folder("testface")
     # read_images_from_folder("test")
     # read_images_from_folder("train")
