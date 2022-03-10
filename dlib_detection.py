@@ -17,6 +17,8 @@ def read_images_from_folder(folder):
             if image is not None:
                 image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 resized_image = cv2.resize(image_gray, (550, 550))
+                cv2.imshow("resized_image", resized_image)
+                cv2.waitKey(0)
                 temp = resized_image.copy()
 
                 detector = dlib.get_frontal_face_detector()
@@ -29,9 +31,9 @@ def read_images_from_folder(folder):
 
                 if len(faces):
                     # Bounding box and eyes
-                    # bb = [i.rect for i in faces]
-                    # bb = [((i.left(), i.top()),
-                    #        (i.right(), i.bottom())) for i in bb]  # Convert out of dlib format
+                    bb = [i.rect for i in faces]
+                    bb = [((i.left(), i.top()),
+                           (i.right(), i.bottom())) for i in bb]  # Convert out of dlib format
 
                     right_eyes = [[face.part(i) for i in range(36, 42)] for face in faces]
                     right_eyes = [[(i.x, i.y) for i in eye] for eye in right_eyes]  # Convert out of dlib format
@@ -39,22 +41,22 @@ def read_images_from_folder(folder):
                     left_eyes = [[face.part(i) for i in range(42, 48)] for face in faces]
                     left_eyes = [[(i.x, i.y) for i in eye] for eye in left_eyes]  # Convert out of dlib format
 
-                    # for i in bb:
-                    #     cv2.rectangle(temp, i[0], i[1], (255, 0, 0), 5)  # Bounding box
-                    #
-                    # for eye in right_eyes:
-                    #     cv2.rectangle(temp, (max(eye, key=lambda x: x[0])[0], max(eye, key=lambda x: x[1])[1]),
-                    #                   (min(eye, key=lambda x: x[0])[0], min(eye, key=lambda x: x[1])[1]),
-                    #                   (0, 0, 255), 5)
-                    #     for point in eye:
-                    #         cv2.circle(temp, (point[0], point[1]), 2, (0, 255, 0), -1)
-                    #
-                    # for eye in left_eyes:
-                    #     cv2.rectangle(temp, (max(eye, key=lambda x: x[0])[0], max(eye, key=lambda x: x[1])[1]),
-                    #                   (min(eye, key=lambda x: x[0])[0], min(eye, key=lambda x: x[1])[1]),
-                    #                   (0, 255, 0), 5)
-                    #     for point in eye:
-                    #         cv2.circle(temp, (point[0], point[1]), 2, (0, 0, 255), -1)
+                    for i in bb:
+                        cv2.rectangle(temp, i[0], i[1], (255, 0, 0), 5)  # Bounding box
+
+                    for eye in right_eyes:
+                        cv2.rectangle(temp, (max(eye, key=lambda x: x[0])[0], max(eye, key=lambda x: x[1])[1]),
+                                      (min(eye, key=lambda x: x[0])[0], min(eye, key=lambda x: x[1])[1]),
+                                      (0, 0, 255), 5)
+                        for point in eye:
+                            cv2.circle(temp, (point[0], point[1]), 2, (0, 255, 0), -1)
+
+                    for eye in left_eyes:
+                        cv2.rectangle(temp, (max(eye, key=lambda x: x[0])[0], max(eye, key=lambda x: x[1])[1]),
+                                      (min(eye, key=lambda x: x[0])[0], min(eye, key=lambda x: x[1])[1]),
+                                      (0, 255, 0), 5)
+                        for point in eye:
+                            cv2.circle(temp, (point[0], point[1]), 2, (0, 0, 255), -1)
 
                     left_eyes = np.array(left_eyes)
                     left_eyes = left_eyes.reshape(-1, left_eyes.shape[-1])
@@ -64,7 +66,10 @@ def read_images_from_folder(folder):
                     right_eyes = right_eyes.reshape(-1, right_eyes.shape[-1])
                     right_eye_center = right_eyes.mean(axis=0).astype("int")
 
-                    # cv2.line(temp, (left_eye_center[0], left_eye_center[1]), (right_eye_center[0], right_eye_center[1]), (255, 255, 255), 5)
+                    cv2.line(temp, (left_eye_center[0], left_eye_center[1]), (right_eye_center[0], right_eye_center[1]), (255, 255, 255), 5)
+
+                    cv2.imshow("temp", temp)
+                    cv2.waitKey(0)
 
                     dY = right_eye_center[1] - left_eye_center[1]
                     dX = right_eye_center[0] - left_eye_center[0]
@@ -76,10 +81,10 @@ def read_images_from_folder(folder):
                     M = cv2.getRotationMatrix2D(center, angle, 1)
 
                     rotated = cv2.warpAffine(resized_image, M, (w, h))
-
+                    cv2.imshow("rotated", rotated)
+                    cv2.waitKey(0)
                     rotated = cv2.resize(rotated, (100, 100))
-                    # cv2.imshow("rotated", rotated)
-                    # cv2.waitKey(0)
+
 
                     # find and crop the face from the aligned image
                     face = face_cascade.detectMultiScale(rotated, 1.1, 5)
@@ -96,11 +101,35 @@ def read_images_from_folder(folder):
                     cv2.imshow("cropped", cropped_face)
                     cv2.waitKey(0)
 
+                    if folder == "train" and current_name != os.path.splitext(file_path)[0].split("_")[0]:
+                        rotated = cv2.resize(rotated, (550, 550))
+
+                        detections = detector(rotated, 1)
+                        for det in detections:
+                            landmarks = predictor(rotated, det)
+
+                        points = []
+                        for i in range(1, 16):
+                            point = [landmarks.part(i).x, landmarks.part(i).y]
+                            points.append(point)
+
+                        mask = [(landmarks.part(29).x, landmarks.part(29).y)]
+
+                        face_mask = points + mask
+                        face_mask = np.array(face_mask, dtype=np.int32)
+                        cv2.fillPoly(rotated, [face_mask], (0, 0, 0))
+                        rotated = cv2.resize(rotated, (100, 100))
+                        cropped_mask = rotated[y + 1:y + h, x + 1:x + w]
+                        cropped_mask = cv2.resize(cropped_mask, (100, 100))
+
+                        current_name = os.path.splitext(file_path)[0].split("_")[0]
+
+
                 else:
                     print(os.path.splitext(file_path)[0], "does not have a face")
 
 if __name__ == '__main__':
-    # read_images_from_folder("tilted")
+    read_images_from_folder("tilted")
     # read_images_from_folder("test")
     # read_images_from_folder("train")
-    read_images_from_folder("masked")
+    # read_images_from_folder("masked")

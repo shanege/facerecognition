@@ -29,7 +29,6 @@ def read_images_from_folder(folder):
             if image is not None:
                 image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 resized_image = cv2.resize(image_gray, (550, 550))
-
                 # make a copy of the image to draw on it
                 temp = resized_image.copy()
 
@@ -105,7 +104,7 @@ def read_images_from_folder(folder):
 
                         face_mask = points + mask
                         face_mask = np.array(face_mask, dtype=np.int32)
-                        cv2.fillPoly(rotated, [face_mask], (0, 0, 0))
+                        cv2.fillPoly(rotated, [face_mask], (0, 0, 0), cv2.LINE_AA)
                         rotated = cv2.resize(rotated, (100, 100))
                         cropped_mask = rotated[y + 1:y + h, x + 1:x + w]
                         cropped_mask = cv2.resize(cropped_mask, (100, 100))
@@ -204,14 +203,14 @@ if __name__ == '__main__':
 
     print("[INFO] Loading test data...")
     # read test image
-    test_data, test_labels = read_images_from_folder("test")
+    test_data, test_labels = read_images_from_folder("tilted")
     adjusted_test_data = test_data - data.mean(axis=1, keepdims=True)
 
     # perform inner product with top n eigenvectors and the adjusted test data
     transformed_test_data = np.dot(top_n_eigenvectors.T, adjusted_test_data)
 
     test_data_length = len(test_labels)
-    result_euclid_pred, result_knn_pred = ([] for i in range(2))
+    result_ncc_pred, result_knn_pred = ([] for i in range(2))
     correct_prediction = 0
 
     # k = square root of N (number of samples)
@@ -229,37 +228,24 @@ if __name__ == '__main__':
         # print(euclid_dist) # print the individual distances
 
         min_dist_index = np.argmin(euclid_dist)
-        euclidean_predicted_face = "unknown" if euclid_dist[min_dist_index] > recognition_threshold else labels[
+        ncc_predicted_face = "unknown" if euclid_dist[min_dist_index] > recognition_threshold else labels[
             min_dist_index]
-        result_euclid_pred.append(euclidean_predicted_face)
+        result_ncc_pred.append(ncc_predicted_face)
 
         # kNN classifier
         k_nearest_indices = np.argpartition(euclid_dist, k)[:k]
         counter = Counter([labels[i] for i in k_nearest_indices])
-        kNN_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > 6000 else \
+        knn_predicted_face = "unknown" if euclid_dist[k_nearest_indices].mean() > 6000 else \
         counter.most_common()[0][0]
-        result_knn_pred.append(kNN_predicted_face)
-
-
-        # print([labels[i] for i in k_nearest_indices]) # print the nearest neighbors
-        # print(euclid_dist[k_nearest_indices]) # print the distances of the nearest neighbors
-        # print(euclid_dist[k_nearest_indices].mean())
-        # print("Euclidean predicted face: {}\n"
-        #       "KNN faces: {}\n"
-        #       "Majority face (a): {}\n"
-        #       "Actual face: {}\n".
-        #       format(euclidean_predicted_face,
-        #              [labels[i] for i in k_nearest_indices],
-        #              counter.most_common()[0],
-        #              test_labels[i]))
+        result_knn_pred.append(knn_predicted_face)
 
         print("Actual face: ", test_labels[i])
-        print("Euclidean predicted face:", euclidean_predicted_face)
-        print("KNN predicted face: ", kNN_predicted_face)
+        print("NCC predicted face:", ncc_predicted_face)
+        print("KNN predicted face: ", knn_predicted_face)
         print("SVM predicted face: ", result_svm_pred[i])
 
-    print("\nEuclid Analysis \n------------------------------")
-    analysis_report(test_labels, result_euclid_pred, "Euclid")
+    print("\nNCC Analysis \n------------------------------")
+    analysis_report(test_labels, result_ncc_pred, "NCC")
 
     print("\nKNN Analysis \n------------------------------")
     analysis_report(test_labels, result_knn_pred, "KNN")
@@ -289,10 +275,17 @@ if __name__ == '__main__':
     # cv2.imwrite('mean_image.jpg', im_unflatten)
     # cv2.imshow("mean_image", im_unflatten)
     # cv2.waitKey(0)
-    #
+
     # # show each face - average face
     # for i in range(len(labels)):
     #     im = np.array(adjusted_data.T[i], dtype=np.uint8)
+    #     im_unflatten = np.reshape(im, (100, 100))
+    #     cv2.imwrite("adjusted_image.jpg", im_unflatten)
+    #     cv2.imshow("adjusted_image", im_unflatten)
+    #     cv2.waitKey(0)
+
+    # for i in range(10):
+    #     im = np.array(top_n_eigenvectors.T[i])
     #     im_unflatten = np.reshape(im, (100, 100))
     #     cv2.imwrite("adjusted_image.jpg", im_unflatten)
     #     cv2.imshow("adjusted_image", im_unflatten)
