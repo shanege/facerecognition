@@ -184,7 +184,7 @@ def analysis_report(test, prediction, model_name):
 if __name__ == '__main__':
     start_time = time.perf_counter()
     print("[INFO] Loading training data...")
-    data, labels = read_images_from_folder("tilted")
+    data, labels = read_images_from_folder("train")
     adjusted_data = data - data.mean(axis=1, keepdims=True)
     covariance_matrix = np.cov(adjusted_data)
 
