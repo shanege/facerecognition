@@ -13,7 +13,6 @@ from sklearn.svm import SVC
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-
 # load images from folder to array
 def read_images_from_folder(folder):
     image_list = []
@@ -156,13 +155,19 @@ def analysis_report(test, prediction, model_name):
     print(f"Macro Recall : {metrics.recall_score(test, prediction, zero_division=0, average='weighted')}")
     print(f"Macro f1 score : {metrics.f1_score(test, prediction, zero_division=0, average='weighted')}")
     print(f"Classification report : {metrics.classification_report(test, prediction, zero_division=0)}")
-    print(roc_auc_score_multiclass(test, prediction, model_name))
+    aucroc_score = roc_auc_score_multiclass(test, prediction, model_name)
+    avg_aucroc_score = 0
+    count = 0
+    for p in aucroc_score:
+        avg_aucroc_score += aucroc_score[p]
+        count += 1
+    print(f"Average AUC-ROC score: {avg_aucroc_score/count:0.2f}")
 
 
 if __name__ == '__main__':
     start_time = time.perf_counter()
     print("[INFO] Loading training data...")
-    data, labels = read_images_from_folder("train")
+    data, labels = read_images_from_folder("tilted")
     adjusted_data = data - data.mean(axis=1, keepdims=True)
     covariance_matrix = np.cov(adjusted_data)
 
