@@ -41,13 +41,14 @@ def read_images_from_folder(folder):
                     faces.append(predictor(temp, det))
 
                 if len(faces):
+                    # find landmarks of right and left eyes
                     right_eyes = [[face.part(i) for i in range(36, 42)] for face in faces]
                     right_eyes = [[(i.x, i.y) for i in eye] for eye in right_eyes]  # Convert out of dlib format
 
                     left_eyes = [[face.part(i) for i in range(42, 48)] for face in faces]
                     left_eyes = [[(i.x, i.y) for i in eye] for eye in left_eyes]  # Convert out of dlib format
 
-                    # convert to numpy array to calculate center
+                    # convert to numpy array and unnest to calculate center
                     left_eyes = np.array(left_eyes)
                     left_eyes = left_eyes.reshape(-1, left_eyes.shape[-1])
                     left_eye_center = left_eyes.mean(axis=0).astype("int")
@@ -55,6 +56,7 @@ def read_images_from_folder(folder):
                     right_eyes = right_eyes.reshape(-1, right_eyes.shape[-1])
                     right_eye_center = right_eyes.mean(axis=0).astype("int")
 
+                    # find angle of tilt
                     dY = right_eye_center[1] - left_eye_center[1]
                     dX = right_eye_center[0] - left_eye_center[0]
                     angle = np.degrees(np.arctan2(dY, dX)) - 180
@@ -66,8 +68,6 @@ def read_images_from_folder(folder):
                     rotated = cv2.warpAffine(resized_image, M, (w, h))
 
                     rotated = cv2.resize(rotated, (100, 100))
-                    # cv2.imshow("rotated", rotated)
-                    # cv2.waitKey(0)
 
                     # find and crop the face from the aligned image
                     face = face_cascade.detectMultiScale(rotated, 1.1, 5)
@@ -79,9 +79,6 @@ def read_images_from_folder(folder):
 
                     cropped_face = rotated[y + 1:y + h, x + 1:x + w]
                     cropped_face = cv2.resize(cropped_face, (100, 100))
-
-                    # cv2.imshow("cropped", cropped_face)
-                    # cv2.waitKey(0)
 
                     face_float = np.float32(cropped_face)
 
@@ -109,9 +106,6 @@ def read_images_from_folder(folder):
                         cropped_mask = rotated[y + 1:y + h, x + 1:x + w]
                         cropped_mask = cv2.resize(cropped_mask, (100, 100))
 
-                        # cv2.imshow("cropped", cropped_mask)
-                        # cv2.waitKey(0)
-
                         mask_float = np.float32(cropped_mask)
 
                         image_list.append(mask_float.flatten('C'))
@@ -122,9 +116,6 @@ def read_images_from_folder(folder):
                 else:
                     print(f"[INFO] {os.path.splitext(file_path)[0]} does not have a face, adding image as training data...")
                     cropped_face = cv2.resize(image_gray, (100, 100))
-
-                    # cv2.imshow("cropped", cropped_face)
-                    # cv2.waitKey(0)
 
                     face_float = np.float32(cropped_face)
 
@@ -231,7 +222,6 @@ if __name__ == '__main__':
     for i in range(test_data_length):
         # NCC classifier
         euclid_dist = np.linalg.norm(transformed_test_data.T[i] - transformed_data.T, axis=1)
-        # print(euclid_dist) # print the individual distances
 
         min_dist_index = np.argmin(euclid_dist)
         ncc_predicted_face = "unknown" if euclid_dist[min_dist_index] > recognition_threshold else labels[
@@ -262,40 +252,3 @@ if __name__ == '__main__':
     total_time = end_time - start_time
     print(f"The program took {math.floor(total_time / 60)} minutes and {math.ceil(total_time % 60)} seconds to "
           f"complete.")
-
-    #     if euclidean_predicted_face == test_labels[i]:
-    #         correct_prediction += 1
-    #
-    # print("Correct predictions: {}/{}\nAccuracy: {}".
-    #       format(correct_prediction, test_data_length, correct_prediction / test_data_length))
-
-    # print(f"Accuracy: {round(accuracy_score(test_labels_arr, results_arr), 2)}")
-    # print(f"Precision: {round(precision_score(test_labels_arr, results_arr), 2)}")
-    # print(f"Recall: {round(recall_score(test_labels_arr, results_arr), 2)}")
-    # print(f"F1_score: {round(f1_score(test_labels_arr, results_arr), 2)}")
-
-    # # show average face
-    # float_img = data.mean(axis=1, keepdims=True)
-    # im = np.array(float_img, dtype=np.uint8)
-    # im_unflatten = np.reshape(im, (100, 100))
-    # cv2.imwrite('mean_image.jpg', im_unflatten)
-    # cv2.imshow("mean_image", im_unflatten)
-    # cv2.waitKey(0)
-
-    # # show each face - average face
-    # for i in range(len(labels)):
-    #     im = np.array(adjusted_data.T[i], dtype=np.uint8)
-    #     im_unflatten = np.reshape(im, (100, 100))
-    #     cv2.imwrite("adjusted_image.jpg", im_unflatten)
-    #     cv2.imshow("adjusted_image", im_unflatten)
-    #     cv2.waitKey(0)
-
-    # # display eigenfaces
-    # eigenfaces = np.array([]).reshape(100, 0)
-    # for i in range(10):
-    #     im = np.array((64 * top_n_eigenvectors.T[i]))
-    #     im_unflatten = np.reshape(im, (100, 100))
-    #     eigenfaces = np.hstack([eigenfaces, im_unflatten])
-    #
-    # cv2.imshow("eigenfaces", eigenfaces)
-    # cv2.waitKey(0)
