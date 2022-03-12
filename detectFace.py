@@ -12,6 +12,7 @@ from sklearn.svm import SVC
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
+
 # load images from folder to array
 def read_images_from_folder(folder):
     image_list = []
@@ -208,7 +209,7 @@ if __name__ == '__main__':
 
     print("[INFO] Loading test data...")
     # read test image
-    test_data, test_labels = read_images_from_folder("tilted")
+    test_data, test_labels = read_images_from_folder("test")
     adjusted_test_data = test_data - data.mean(axis=1, keepdims=True)
 
     # perform inner product with top n eigenvectors and the adjusted test data
@@ -219,7 +220,7 @@ if __name__ == '__main__':
     correct_prediction = 0
 
     # k = square root of N (number of samples)
-    k = math.floor(math.sqrt(len(labels)))
+    k = math.floor(math.sqrt(len(labels))/2)
 
     recognition_threshold = 6000
 
@@ -289,9 +290,11 @@ if __name__ == '__main__':
     #     cv2.imshow("adjusted_image", im_unflatten)
     #     cv2.waitKey(0)
 
+    # eigenfaces = np.array([]).reshape(100, 0)
     # for i in range(10):
-    #     im = np.array(top_n_eigenvectors.T[i])
+    #     im = np.array((64 * top_n_eigenvectors.T[i]))
     #     im_unflatten = np.reshape(im, (100, 100))
-    #     cv2.imwrite("adjusted_image.jpg", im_unflatten)
-    #     cv2.imshow("adjusted_image", im_unflatten)
-    #     cv2.waitKey(0)
+    #     eigenfaces = np.hstack([eigenfaces, im_unflatten])
+    #
+    # cv2.imshow("eigenfaces", eigenfaces)
+    # cv2.waitKey(0)
