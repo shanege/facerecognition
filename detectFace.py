@@ -290,6 +290,7 @@ if __name__ == '__main__':
     #     cv2.imshow("adjusted_image", im_unflatten)
     #     cv2.waitKey(0)
 
+    # # display eigenfaces
     # eigenfaces = np.array([]).reshape(100, 0)
     # for i in range(10):
     #     im = np.array((64 * top_n_eigenvectors.T[i]))
