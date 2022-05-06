@@ -4,10 +4,10 @@ Works on normal, masked, and tilted faces.
 
 # Usage 
 Place the appropriate images in the appropriate folders as follows:
-train - training faces
-test - testing faces
-masked - faces with face masks on
-tilted - tilted faces
+train - training faces\n
+test - testing faces\n
+masked - faces with face masks on\n
+tilted - tilted faces\n
 
 # Expected Results
 Results may vary depending on quality of training images but expect approximate accuracies of:
