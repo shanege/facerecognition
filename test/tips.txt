@@ -1,0 +1,3 @@
+add images of faces to test here, preferably with the naming format: name_test
+
+* only jpg and jpeg file formats allowed

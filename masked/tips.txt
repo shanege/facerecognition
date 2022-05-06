@@ -1,0 +1,3 @@
+add images of faces in face masks here, preferably with the naming format: name_facemask
+
+* only jpg and jpeg file formats allowed

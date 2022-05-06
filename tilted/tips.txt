@@ -1,0 +1,3 @@
+add images of tilted faces here, preferably with the naming format: name_tilt
+
+* only jpg and jpeg file formats allowed

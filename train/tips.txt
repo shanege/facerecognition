@@ -1,0 +1,3 @@
+add images of training faces with different experessions here, preferably with the naming format: name_happy, name_sad
+
+* only jpg and jpeg file formats allowed
