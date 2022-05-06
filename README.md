@@ -16,16 +16,25 @@ tilted - tilted faces
 Results may vary depending on quality of training images but expect approximate accuracies of:
 
 Normal test case:
+
 NCC - 85%
+
 kNN - 75%
+
 SVM - 85%
 
 Tilted test case:
+
 NCC - 78%
+
 kNN - 56%
+
 SVM - 78%
 
 Masked test case:
+
 NCC - 73%
+
 kNN - 55%
+
 SVM - 45%
